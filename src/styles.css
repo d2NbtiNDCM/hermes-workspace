@@ -1595,6 +1595,29 @@ code {
 }
 
 /* ════════════════════════════════════════════════════════════════════
+   Session "just completed" highlight — flashes a soft glow so the user
+   notices a response finished, then fades back out.
+   ═══════════════════════════════════════════════════════════════════ */
+@keyframes session-complete-glow {
+  0% {
+    background-color: rgba(99, 102, 241, 0.28);
+    box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.5);
+  }
+  50% {
+    background-color: rgba(99, 102, 241, 0.12);
+    box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.25);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: inset 0 0 0 1px transparent;
+  }
+}
+
+.session-just-completed {
+  animation: session-complete-glow 2.2s ease-out forwards;
+}
+
+/* ════════════════════════════════════════════════════════════════════
    SciFi Theme — imported AFTER all other theme rules so that
    its CSS variable remaps take precedence over the default
    Tailwind oklch values and .system dark mode overrides.

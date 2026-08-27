@@ -226,18 +226,13 @@ export const Route = createFileRoute('/api/sessions')({
           }
 
           if (capabilities.dashboard.available && !capabilities.enhancedChat) {
+            const session = await updateSession(sessionKey, {
+              title: label,
+            })
             return json({
               ok: true,
               sessionKey,
-              entry: {
-                key: sessionKey,
-                id: sessionKey,
-                title: label || sessionKey,
-                label: label || sessionKey,
-                derivedTitle: label || sessionKey,
-                updatedAt: Date.now(),
-              },
-              updated: false,
+              entry: toSessionSummary(session),
             })
           }
 

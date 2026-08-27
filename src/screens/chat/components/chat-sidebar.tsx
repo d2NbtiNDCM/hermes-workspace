@@ -1055,7 +1055,7 @@ function ChatSidebarComponent({
         width: isVisuallyCollapsed
           ? isMobile
             ? 0
-            : 48
+            : 220
           : isMobile
             ? '85vw'
             : 300,
@@ -1248,12 +1248,10 @@ function ChatSidebarComponent({
           hidden={!showNativeSessions}
         >
           <AnimatePresence initial={false}>
-            {!isVisuallyCollapsed && (
               <motion.div
                 key="content"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
                 transition={transition}
                 className="flex flex-col w-full min-h-0 h-full"
               >
@@ -1271,7 +1269,6 @@ function ChatSidebarComponent({
                   />
                 </div>
               </motion.div>
-            )}
           </AnimatePresence>
         </div>
       </div>

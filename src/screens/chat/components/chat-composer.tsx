@@ -70,7 +70,7 @@ type ChatComposerAttachment = {
   size: number
   dataUrl?: string
   previewUrl?: string
-  kind?: 'image' | 'file' | 'audio'
+  kind?: 'image' | 'file' | 'audio' | 'video'
 }
 
 type ThinkingLevel = 'off' | 'low' | 'medium' | 'high' | 'adaptive'
@@ -444,6 +444,15 @@ function isImageMimeType(value: string): boolean {
   return normalized.startsWith('image/')
 }
 
+function isVideoMimeType(value: string): boolean {
+  const normalized = normalizeMimeType(value)
+  return normalized.startsWith('video/')
+}
+
+function isGifMimeType(value: string): boolean {
+  return normalizeMimeType(value) === 'image/gif'
+}
+
 function inferImageMimeTypeFromFileName(name: string): string {
   const match = /\.([a-z0-9]+)$/i.exec(name.trim())
   if (!match?.[1]) return ''
@@ -464,6 +473,10 @@ function isTextMimeType(value: string): boolean {
 function isImageFile(file: File): boolean {
   if (isImageMimeType(file.type)) return true
   return inferImageMimeTypeFromFileName(file.name).length > 0
+}
+
+function isVideoFile(file: File): boolean {
+  return isVideoMimeType(file.type)
 }
 
 function isTextFile(file: File): boolean {
@@ -492,6 +505,7 @@ function hasAttachableData(dt: DataTransfer | null): boolean {
       (item) =>
         item.kind === 'file' &&
         (isImageMimeType(item.type) ||
+          isVideoMimeType(item.type) ||
           isTextMimeType(item.type) ||
           item.type.trim().length === 0),
     )
@@ -1458,7 +1472,7 @@ function ChatComposerComponent({
           async (file, index): Promise<ChatComposerAttachment | null> => {
             const imageFile = isImageFile(file)
             const textFile = isTextFile(file)
-            if (!imageFile && !textFile && file.type.trim().length > 0) {
+            if (!imageFile && !textFile && !isVideoFile(file) && file.type.trim().length > 0) {
               return null
             }
 
@@ -1490,6 +1504,38 @@ function ChatComposerComponent({
                 size: textBytes,
                 dataUrl: textContent,
                 kind: 'file',
+              }
+            }
+
+            // Video files: pass through as-is, no compression
+            if (isVideoFile(file)) {
+              const dataUrl = await readFileAsDataUrl(file)
+              if (!dataUrl) return null
+              const name = file.name || `video-${timestamp}-${index + 1}`
+              return {
+                id: crypto.randomUUID(),
+                name,
+                contentType: normalizeMimeType(file.type) || 'video/mp4',
+                size: file.size,
+                dataUrl,
+                previewUrl: dataUrl,
+                kind: 'video',
+              }
+            }
+
+            // GIF files: skip compression to preserve animation
+            if (isGifMimeType(file.type) || inferImageMimeTypeFromFileName(file.name).toLowerCase() === 'image/gif') {
+              const dataUrl = await readFileAsDataUrl(file)
+              if (!dataUrl) return null
+              const name = file.name || `image-${timestamp}-${index + 1}.gif`
+              return {
+                id: crypto.randomUUID(),
+                name,
+                contentType: 'image/gif',
+                size: file.size,
+                dataUrl,
+                previewUrl: dataUrl,
+                kind: 'image',
               }
             }
 

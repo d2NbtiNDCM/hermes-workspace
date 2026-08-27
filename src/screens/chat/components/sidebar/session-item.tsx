@@ -8,10 +8,11 @@ import {
   Pen01Icon,
   PinIcon,
 } from '@hugeicons/core-free-icons'
-import { memo, useMemo } from 'react'
+import { memo, useMemo, useCallback } from 'react'
 import { getMessageTimestamp } from '../../utils'
 import type { SessionMeta } from '../../types'
 import { cn } from '@/lib/utils'
+import { useCompletedSessionStore } from '@/stores/completed-session-store'
 import {
   MenuContent,
   MenuItem,
@@ -108,6 +109,9 @@ function SessionItemComponent({
   const isGenerating = session.titleStatus === 'generating'
   const isError = session.titleStatus === 'error'
   const baseTitle = getSessionDisplayTitle(session, isGenerating)
+  const justCompleted = useCompletedSessionStore((s) =>
+    s.justCompletedKeys.has(session.key) || s.justCompletedKeys.has(session.friendlyId),
+  )
 
   const updatedAt = useMemo(() => {
     if (typeof session.updatedAt === 'number') return session.updatedAt
@@ -140,6 +144,8 @@ function SessionItemComponent({
         'group inline-flex items-center justify-between',
         'w-full text-left pl-1.5 pr-0.5 h-14 rounded-lg transition-colors duration-0',
         'select-none',
+        'transition-all duration-500',
+        justCompleted && 'session-just-completed',
         active
           ? 'bg-primary-200 text-primary-950'
           : 'bg-transparent text-primary-950 [&:hover:not(:has(button:hover))]:bg-primary-200',

@@ -75,6 +75,11 @@ export const DEFAULT_SLASH_COMMANDS: Array<SlashCommandDefinition> = [
   { command: '/usage', description: 'View token usage' },
   { command: '/status', description: 'Show session info' },
   { command: '/debug', description: 'Upload debug report' },
+
+  // Session control (busy-state)
+  { command: '/queue <message>', description: 'Queue message for next turn' },
+  { command: '/steer <message>', description: 'Steer the agent mid-turn' },
+  { command: '/interrupt <message>', description: 'Interrupt current turn and send' },
 ]
 
 export function mergeSlashCommands(

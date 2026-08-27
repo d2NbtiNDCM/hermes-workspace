@@ -47,6 +47,7 @@ import {
   isRecentSession,
   resetPendingSend,
   setPendingGeneration,
+  stashPendingSend,
 } from './pending-send'
 import { useChatMeasurements } from './hooks/use-chat-measurements'
 import { useChatHistory } from './hooks/use-chat-history'
@@ -89,6 +90,7 @@ import {
   saveApprovals,
 } from '@/screens/gateway/lib/approvals-store'
 import { stripQueuedWrapper } from '@/lib/strip-queued-wrapper'
+import { steerAgent } from '@/lib/gateway-api'
 import { cn } from '@/lib/utils'
 import { toast } from '@/components/ui/toast'
 import { hapticTap } from '@/lib/haptics'
@@ -108,6 +110,7 @@ import { ErrorToastContainer, showErrorToast } from '@/components/error-toast'
 import { persistRecoveryMessage, useChatStore } from '@/stores/chat-store'
 import { useSessionModelStore } from '@/stores/session-model-store'
 import { useResearchCard } from '@/hooks/use-research-card'
+import { useCompletedSessionStore } from '@/stores/completed-session-store'
 // MOBILE_TAB_BAR_OFFSET removed — tab bar always hidden in chat
 import { useTapDebug } from '@/hooks/use-tap-debug'
 import { useChatMode } from '@/hooks/use-chat-mode'
@@ -1205,6 +1208,14 @@ export function ChatScreen({
       // Read directly from the store to avoid re-creating this callback on every settings change.
       if (useChatSettingsStore.getState().settings.soundOnChatComplete) {
         playChatComplete()
+      }
+      // Highlight session in sidebar as "just completed"
+      if (activeSend?.sessionKey) {
+        useCompletedSessionStore.getState().markCompleted(
+          activeSend.friendlyId || activeSend.sessionKey,
+        )
+        // Bump the session to top by updating cache
+        queryClient.invalidateQueries({ queryKey: chatQueryKeys.sessions })
       }
     }, [queryClient, streamFinish]),
     onError: useCallback(
@@ -2399,6 +2410,65 @@ export function ChatScreen({
         if (exported) {
           toast('Conversation exported', { type: 'success' })
         }
+        return true
+      }
+
+      // /queue <message> — queue message for next turn when agent is busy
+      if (trimmedCommand.startsWith('/queue')) {
+        const message = trimmedCommand.slice(6).trim()
+        if (!message) {
+          toast('Usage: /queue <message>', { type: 'warning' })
+          return true
+        }
+        const queueKey = isPortableMode
+          ? 'main'
+          : forcedSessionKey || resolvedSessionKey || activeSessionKey || activeFriendlyId
+        const { optimisticMessage } = createOptimisticMessage(message, [])
+        stashPendingSend({
+          sessionKey: queueKey,
+          friendlyId: activeFriendlyId,
+          message,
+          attachments: [],
+          optimisticMessage,
+        })
+        toast('Message queued for next turn', { type: 'success' })
+        return true
+      }
+
+      // /steer <message> — inject steering hint mid-turn
+      if (trimmedCommand.startsWith('/steer')) {
+        const message = trimmedCommand.slice(6).trim()
+        if (!message) {
+          toast('Usage: /steer <message>', { type: 'warning' })
+          return true
+        }
+        const steerKey = isPortableMode
+          ? 'main'
+          : forcedSessionKey || resolvedSessionKey || activeSessionKey || activeFriendlyId
+        void steerAgent(steerKey, message).then(() => {
+          toast('Steering directive sent', { type: 'success' })
+        }).catch(() => {
+          toast('Steer not available (agent may not be running)', { type: 'warning' })
+        })
+        return true
+      }
+
+      // /interrupt <message> — cancel current turn and send new message
+      if (trimmedCommand.startsWith('/interrupt')) {
+        const message = trimmedCommand.slice(10).trim()
+        if (!message) {
+          toast('Usage: /interrupt <message>', { type: 'warning' })
+          return true
+        }
+        cancelStreaming()
+        setSending(false)
+        setPendingGeneration(false)
+        setWaitingForResponse(false)
+        // Send the interrupt message immediately
+        const intKey = isPortableMode
+          ? 'main'
+          : forcedSessionKey || resolvedSessionKey || activeSessionKey || activeFriendlyId
+        sendMessage(intKey, activeFriendlyId, message, [], false)
         return true
       }
 
